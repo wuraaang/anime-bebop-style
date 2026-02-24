@@ -1,7 +1,9 @@
-# 🚀 Cowboy Bebop Anime Avatar — ComfyUI Workflow
+# Cowboy Bebop Outpainting — ComfyUI Workflow
 
-Generate high quality **Cowboy Bebop style anime portraits** using ComfyUI.
-Full pipeline with HiRes Fix, FaceDetailer and RealESRGAN upscale.
+Generate **Cowboy Bebop style anime backgrounds** around a portrait photo using ComfyUI.
+Upload a photo, the pipeline removes the background, outpaints a Bebop-style scene around the subject, and composites the original portrait back at full quality.
+
+Output: **1344x768 (16:9)** — ready for YouTube thumbnails, banners, and video backgrounds.
 
 ![Sample Output](images/sample-output.png)
 
@@ -9,109 +11,125 @@ Full pipeline with HiRes Fix, FaceDetailer and RealESRGAN upscale.
 
 ---
 
-## ✨ What you get
+## What you get
 
-A clean, high-resolution 90s anime cel shading portrait — ideal for:
-- YouTube faceless channel avatar
-- Talking head animation (LongCat, SadTalker)
-- Thumbnails & channel branding
-- Profile pictures
+A widescreen anime background in Cowboy Bebop style with your portrait composited in — ideal for:
+- YouTube thumbnails & channel banners
+- Video backgrounds for talking head content
+- Stream overlays
+- Social media covers
 
 ---
 
-## 📦 Models Required
+## Pipeline
+
+```
+LoadImage (portrait)
+    |
+    +---> BiRefNet Matting ──> mask
+    |                           |
+    +---> ImagePadForOutpaint (1344x768, feathering 48)
+    |         |
+    |    VAEEncodeForInpaint
+    |         |
+    |    KSampler (30 steps, CFG 7, euler_ancestral, denoise 1.0)
+    |         |
+    |    VAEDecode ──> outpainted image
+    |                       |
+    +---> Pad Original (1344x768, feathering 0)
+              |              |
+         InvertMask    ImageCompositeMasked
+                             |
+                      Preview + Save (1344x768)
+```
+
+The composite step pastes the original portrait pixels back over the outpainted result,
+so the subject stays sharp while only the background is AI-generated.
+
+---
+
+## Models Required
 
 | Model | Link | Destination |
 |---|---|---|
 | **Illustrious XL v2.0** | [CivitAI](https://civitai.com/models/795765) | `models/checkpoints/` |
 | **Cowboy Bebop Style LoRA** | [CivitAI](https://civitai.com/models/1747626) | `models/loras/` |
-| **face_yolov8m.pt** | [HuggingFace](https://huggingface.co/Bingsu/adetailer) | `models/ultralytics/bbox/` |
-| **sam_vit_b_01ec64.pth** | [Meta](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth) | `models/sams/` |
-| **RealESRGAN_x4plus_anime_6B.pth** | [GitHub](https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.2.4) | `models/upscale_models/` |
+
+> BiRefNet Matting model is auto-downloaded on first run by the `AutoDownloadBiRefNetModel` node.
 
 ---
 
-## 🔌 Custom Nodes Required
+## Custom Nodes Required
 
-Install via **ComfyUI Manager**:
-- `ComfyUI-Impact-Pack` — FaceDetailer
-- `ComfyUI_UltimateSDUpscale` — UltimateSDUpscale
+| Node | Purpose | URL |
+|---|---|---|
+| **ComfyUI_BiRefNet_ll** | Background removal (matting) | [GitHub](https://github.com/lldacing/ComfyUI_BiRefNet_ll) |
+| **ComfyUI-KJNodes** | ImagePadForOutpaintTargetSize | [GitHub](https://github.com/kijai/ComfyUI-KJNodes) |
 
 ---
 
-## 🚀 Pipeline
+## Quick Start
 
-```
-EmptyLatentImage (832x1216)
-        ↓
-KSampler — 30 steps, CFG 5.5, euler_ancestral     ← Main generation
-        ↓
-LatentUpscaleBy x1.25                              ← HiRes Fix prep
-        ↓
-KSampler — 20 steps, CFG 8.0, euler, denoise 0.45 ← HiRes Fix refine
-        ↓
-VAEDecode
-        ↓
-FaceDetailer (YOLOv8 + SAM, denoise 0.25)         ← Face cleanup
-        ↓
-UltimateSDUpscale x2 (RealESRGAN Anime6B)         ← Final upscale ~2080x3040
-        ↓
-SaveImage
+```bash
+# 1. Run the setup script (downloads models + installs custom nodes)
+bash setup-bebop.sh /path/to/ComfyUI
+
+# 2. Restart ComfyUI
+
+# 3. Load the workflow
+#    File > Load > workflow/bebop-outpaint-workflow.json
+
+# 4. Upload a portrait photo in the "Portrait Source" node and queue
 ```
 
 ---
 
-## 🎨 Prompting Guide
+## Prompting Guide
 
 **Trigger word (mandatory):** `cowboy_bebop_style`
 
-**Positive prompt:**
+**Positive prompt (background description):**
 ```
-masterpiece, best quality, amazing quality, cowboy_bebop_style,
-(1girl:1.3), (beautiful woman:1.2), (feminine face:1.3), fair skin, female,
-solo, portrait, bust shot, looking at viewer, confident smirk,
-(long flowing white hair:1.2), sharp green eyes,
-gold hoop earrings, gold chain necklace,
-oversized dark jacket, black crop top, simple dark background,
-retro anime, 90s anime aesthetic, cel shading, flat color, 2d,
-soft dramatic lighting, highres
+cowboy_bebop_style; interior of the Bebop spaceship lounge;
+sitting on a worn leather couch; warm amber backlighting from a large window behind;
+golden hour sunlight streaming through glass; cyberpunk cityscape visible through window;
+dim moody interior lighting; retro-futuristic room details; old CRT monitors on the walls;
+dark atmospheric shadows; dramatic rim lighting on edges;
+anime background; masterpiece; best quality; highly detailed background
 ```
 
 **Negative prompt:**
 ```
-worst quality, low quality, blurry, deformed, extra fingers, bad anatomy,
-watermark, text, signature, 3d, realistic, photorealistic, nsfw,
-male, man, masculine, artifacts, distorted face, multiple characters
+worst quality; low quality; blurry; deformed; watermark; text; logo; signature;
+jpeg artifacts; out of frame; cropped; bright flat lighting; white background;
+plain background; empty background; person; character; face; body; extra limbs
 ```
-
-> ⚠️ Do NOT use `scars`, `face markings` or `red marks` — causes red artifacts with FaceDetailer.
 
 **Key settings:**
 
 | Parameter | Value |
 |---|---|
-| CLIP skip | -2 |
-| LoRA strength | 1.0 |
-| Resolution | 832x1216 |
-| CFG main | 5.5 |
-| CFG HiRes | 8.0 |
-| Sampler main | euler_ancestral |
-| Sampler refine | euler |
+| Output resolution | 1344x768 (16:9) |
+| LoRA strength | 0.8 |
+| Steps | 30 |
+| CFG | 7 |
+| Sampler | euler_ancestral |
 | Scheduler | normal |
-| HiRes denoise | 0.45 |
-| FaceDetailer denoise | 0.25 |
-| Upscale | 2x RealESRGAN Anime6B |
+| Denoise | 1.0 |
+| Feathering (outpaint) | 48 |
+| BiRefNet model | Matting |
 
 ---
 
-## 💡 Tips
+## Tips
 
-- Try different seeds — character varies a lot
-- LoRA 0.8–1.0 controls Bebop style intensity
-- Use plain dark background for talking head animation (LongCat compatible)
+- The negative prompt excludes `person; character; face; body` so the outpainting only generates background
+- Adjust the positive prompt to change the scene (bar, rooftop, cockpit, etc.)
+- LoRA 0.7-0.9 controls Bebop style intensity
+- The composite step preserves original portrait quality — only the background is AI-generated
 
 ---
 
-## 📄 License
+## License
 
 MIT — models have their own licenses, check original pages.

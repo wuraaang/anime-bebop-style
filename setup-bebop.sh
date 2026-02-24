@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup-bebop.sh - One-shot installer for Cowboy Bebop Style workflow
+# setup-bebop.sh - One-shot installer for Cowboy Bebop Outpainting workflow
 # Downloads all required models and custom nodes for ComfyUI
 #
 # Usage: bash setup-bebop.sh [/path/to/ComfyUI]
@@ -45,9 +45,6 @@ info "ComfyUI found at: $COMFY_DIR"
 DIRS=(
     "$COMFY_DIR/models/checkpoints"
     "$COMFY_DIR/models/loras"
-    "$COMFY_DIR/models/upscale_models"
-    "$COMFY_DIR/models/ultralytics/bbox"
-    "$COMFY_DIR/models/sams"
     "$COMFY_DIR/custom_nodes"
 )
 
@@ -109,20 +106,8 @@ download \
     "https://civitai.com/api/download/models/1241218?type=Model&format=SafeTensor" \
     "$COMFY_DIR/models/loras/cowboy-bebop-style-illustriousxl.safetensors"
 
-# Upscale: RealESRGAN x4plus Anime 6B
-download \
-    "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth" \
-    "$COMFY_DIR/models/upscale_models/RealESRGAN_x4plus_anime_6B.pth"
-
-# Face detector: YOLOv8m
-download \
-    "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" \
-    "$COMFY_DIR/models/ultralytics/bbox/face_yolov8m.pt"
-
-# SAM: ViT-B
-download \
-    "https://huggingface.co/spaces/jbrinkma/segment-anything/resolve/main/sam_vit_b_01ec64.pth" \
-    "$COMFY_DIR/models/sams/sam_vit_b_01ec64.pth"
+# Note: BiRefNet Matting model is auto-downloaded by the AutoDownloadBiRefNetModel node
+# on first workflow run. No manual download needed.
 
 # ── 5. Install custom nodes ─────────────────────────────────────────
 echo ""
@@ -150,13 +135,13 @@ install_node() {
     ok "Installed: $name"
 }
 
-install_node "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
-install_node "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git"
+install_node "https://github.com/lldacing/ComfyUI_BiRefNet_ll.git"
+install_node "https://github.com/kijai/ComfyUI-KJNodes.git"
 
 # ── 6. Done ──────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  Cowboy Bebop Style workflow setup complete!${NC}"
+echo -e "${GREEN}  Cowboy Bebop Outpainting workflow setup complete!${NC}"
 echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 echo ""
 echo "  Models installed in:  $COMFY_DIR/models/"
@@ -164,6 +149,6 @@ echo "  Custom nodes in:      $COMFY_DIR/custom_nodes/"
 echo ""
 echo "  Next steps:"
 echo "    1. Restart ComfyUI if it's running"
-echo "    2. Load workflow/bebop-avatar-workflow.json"
-echo "    3. Generate!"
+echo "    2. Load workflow/bebop-outpaint-workflow.json"
+echo "    3. Upload a portrait photo and generate!"
 echo ""
