@@ -1,6 +1,7 @@
 #!/bin/bash
-# setup-bebop.sh - One-shot installer for Cowboy Bebop Outpainting workflow
+# setup-bebop.sh - One-shot installer for Cowboy Bebop workflows
 # Downloads all required models and custom nodes for ComfyUI
+# Supports: Outpainting workflow + Avatar workflow
 #
 # Usage: bash setup-bebop.sh [/path/to/ComfyUI]
 
@@ -45,6 +46,9 @@ info "ComfyUI found at: $COMFY_DIR"
 DIRS=(
     "$COMFY_DIR/models/checkpoints"
     "$COMFY_DIR/models/loras"
+    "$COMFY_DIR/models/ultralytics/bbox"
+    "$COMFY_DIR/models/sams"
+    "$COMFY_DIR/models/upscale_models"
     "$COMFY_DIR/custom_nodes"
 )
 
@@ -109,6 +113,23 @@ download \
 # Note: BiRefNet Matting model is auto-downloaded by the AutoDownloadBiRefNetModel node
 # on first workflow run. No manual download needed.
 
+# ── Avatar workflow models ──
+
+# Face detector: YOLOv8m (for FaceDetailer)
+download \
+    "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" \
+    "$COMFY_DIR/models/ultralytics/bbox/face_yolov8m.pt"
+
+# SAM: Segment Anything Model ViT-B (for FaceDetailer)
+download \
+    "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" \
+    "$COMFY_DIR/models/sams/sam_vit_b_01ec64.pth"
+
+# Upscale: RealESRGAN x4plus Anime 6B (for Ultimate SD Upscale)
+download \
+    "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth" \
+    "$COMFY_DIR/models/upscale_models/RealESRGAN_x4plus_anime_6B.pth"
+
 # ── 5. Install custom nodes ─────────────────────────────────────────
 echo ""
 info "=== Installing custom nodes ==="
@@ -135,20 +156,45 @@ install_node() {
     ok "Installed: $name"
 }
 
+# Outpainting workflow nodes
 install_node "https://github.com/lldacing/ComfyUI_BiRefNet_ll.git"
 install_node "https://github.com/kijai/ComfyUI-KJNodes.git"
 
-# ── 6. Done ──────────────────────────────────────────────────────────
+# Avatar workflow nodes
+install_node "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
+install_node "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git"
+
+# ── 6. Copy workflows to ComfyUI user directory ───────────────────────
+echo ""
+info "=== Installing workflows ==="
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+USER_WORKFLOWS="$COMFY_DIR/user/default/workflows"
+mkdir -p "$USER_WORKFLOWS"
+
+for wf in "$SCRIPT_DIR"/workflow/*.json; do
+    [ -f "$wf" ] || continue
+    wf_name="$(basename "$wf")"
+    cp "$wf" "$USER_WORKFLOWS/$wf_name"
+    ok "Installed workflow: $wf_name"
+done
+
+# ── 7. Done ──────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  Cowboy Bebop Outpainting workflow setup complete!${NC}"
+echo -e "${GREEN}  Cowboy Bebop workflows setup complete!${NC}"
 echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 echo ""
 echo "  Models installed in:  $COMFY_DIR/models/"
 echo "  Custom nodes in:      $COMFY_DIR/custom_nodes/"
+echo "  Workflows copied to:  $USER_WORKFLOWS/"
+echo ""
+echo "  Included workflows:"
+echo "    - bebop-outpaint-workflow.json  (outpainting)"
+echo "    - bebop-avatar-workflow.json    (avatar generation)"
 echo ""
 echo "  Next steps:"
 echo "    1. Restart ComfyUI if it's running"
-echo "    2. Load workflow/bebop-outpaint-workflow.json"
-echo "    3. Upload a portrait photo and generate!"
+echo "    2. Load a workflow from the ComfyUI menu"
+echo "    3. Generate!"
 echo ""

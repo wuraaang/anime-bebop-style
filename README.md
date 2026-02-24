@@ -1,9 +1,6 @@
-# Cowboy Bebop Outpainting — ComfyUI Workflow
+# Cowboy Bebop Style — ComfyUI Workflows
 
-Generate **Cowboy Bebop style anime backgrounds** around a portrait photo using ComfyUI.
-Upload a photo, the pipeline removes the background, outpaints a Bebop-style scene around the subject, and composites the original portrait back at full quality.
-
-Output: **1344x768 (16:9)** — ready for YouTube thumbnails, banners, and video backgrounds.
+Two ComfyUI workflows for generating **Cowboy Bebop style** anime art. One script installs everything.
 
 ![Sample Output](images/sample-output.png)
 
@@ -11,17 +8,33 @@ Output: **1344x768 (16:9)** — ready for YouTube thumbnails, banners, and video
 
 ---
 
-## What you get
+## Included Workflows
 
-A widescreen anime background in Cowboy Bebop style with your portrait composited in — ideal for:
-- YouTube thumbnails & channel banners
-- Video backgrounds for talking head content
-- Stream overlays
-- Social media covers
+### 1. Outpainting — Bebop Background
+Generate a **Cowboy Bebop style anime background** around a portrait photo.
+Upload a photo, the pipeline removes the background, outpaints a Bebop-style scene, and composites the original portrait back at full quality.
+
+**Output:** 1344x768 (16:9) — YouTube thumbnails, banners, video backgrounds.
+
+### 2. Avatar — Bebop Character
+Generate a **full anime character portrait** from scratch in Cowboy Bebop style.
+21-node pipeline: base generation → latent upscale → HiRes fix → FaceDetailer → Ultimate SD Upscale x2.
+
+**Output:** ~2080x3040px — YouTube avatars, talking head, profile pictures.
 
 ---
 
-## Pipeline
+## What you get
+
+- Widescreen anime backgrounds with your portrait composited in (outpainting)
+- High-res anime character portraits in Bebop style (avatar)
+- Ideal for: YouTube thumbnails, channel banners, talking head content, stream overlays, profile pics
+
+---
+
+## Pipelines
+
+### Outpainting Pipeline
 
 ```
 LoadImage (portrait)
@@ -43,90 +56,141 @@ LoadImage (portrait)
                       Preview + Save (1344x768)
 ```
 
-The composite step pastes the original portrait pixels back over the outpainted result,
-so the subject stays sharp while only the background is AI-generated.
+### Avatar Pipeline
+
+```
+Checkpoint (Illustrious XL) + LoRA (Bebop Style) + CLIP Skip -2
+    |
+    +---> Positive/Negative Prompts
+    |         |
+    |    EmptyLatentImage (832x1216)
+    |         |
+    |    KSampler - Base (30 steps, CFG 5.5, euler_ancestral)
+    |         |
+    |    LatentUpscale x1.25
+    |         |
+    |    KSampler - HiRes Refine (20 steps, CFG 8, euler, denoise 0.45)
+    |         |
+    |    VAEDecode
+    |         |
+    |    FaceDetailer (YOLOv8 + SAM, denoise 0.25)
+    |         |
+    |    Ultimate SD Upscale x2 (RealESRGAN Anime 6B)
+    |         |
+    |    Save Output (~2080x3040px)
+```
 
 ---
 
 ## Models Required
 
-| Model | Link | Destination |
+| Model | Used by | Destination |
 |---|---|---|
-| **Illustrious XL v2.0** | [CivitAI](https://civitai.com/models/795765) | `models/checkpoints/` |
-| **Cowboy Bebop Style LoRA** | [CivitAI](https://civitai.com/models/1747626) | `models/loras/` |
+| **Illustrious XL v2.0** | Both | `models/checkpoints/` |
+| **Cowboy Bebop Style LoRA** | Both | `models/loras/` |
+| **face_yolov8m.pt** | Avatar | `models/ultralytics/bbox/` |
+| **sam_vit_b_01ec64.pth** | Avatar | `models/sams/` |
+| **RealESRGAN_x4plus_anime_6B.pth** | Avatar | `models/upscale_models/` |
 
-> BiRefNet Matting model is auto-downloaded on first run by the `AutoDownloadBiRefNetModel` node.
+> BiRefNet Matting model (outpainting) is auto-downloaded on first run.
 
 ---
 
 ## Custom Nodes Required
 
-| Node | Purpose | URL |
+| Node | Purpose | Used by |
 |---|---|---|
-| **ComfyUI_BiRefNet_ll** | Background removal (matting) | [GitHub](https://github.com/lldacing/ComfyUI_BiRefNet_ll) |
-| **ComfyUI-KJNodes** | ImagePadForOutpaintTargetSize | [GitHub](https://github.com/kijai/ComfyUI-KJNodes) |
+| **ComfyUI_BiRefNet_ll** | Background removal (matting) | Outpainting |
+| **ComfyUI-KJNodes** | ImagePadForOutpaintTargetSize | Outpainting |
+| **ComfyUI-Impact-Pack** | FaceDetailer, SAMLoader, UltralyticsDetectorProvider | Avatar |
+| **ComfyUI_UltimateSDUpscale** | UltimateSDUpscale tiled upscaling | Avatar |
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Run the setup script (downloads models + installs custom nodes)
+# 1. Clone this repo
+git clone https://github.com/wuraaang/anime-bebop-style.git
+cd anime-bebop-style
+
+# 2. Run the setup script (downloads models + installs custom nodes + copies workflows)
 bash setup-bebop.sh /path/to/ComfyUI
 
-# 2. Restart ComfyUI
+# 3. Restart ComfyUI
 
-# 3. Load the workflow
-#    File > Load > workflow/bebop-outpaint-workflow.json
-
-# 4. Upload a portrait photo in the "Portrait Source" node and queue
+# 4. Load a workflow from the ComfyUI menu
+#    - bebop-outpaint-workflow.json  → upload a portrait photo
+#    - bebop-avatar-workflow.json    → just hit Queue
 ```
 
 ---
 
 ## Prompting Guide
 
-**Trigger word (mandatory):** `cowboy_bebop_style`
+**Trigger word (mandatory for both workflows):** `cowboy_bebop_style`
 
-**Positive prompt (background description):**
+### Outpainting Prompts
+
+**Positive (background description):**
 ```
 cowboy_bebop_style; interior of the Bebop spaceship lounge;
 sitting on a worn leather couch; warm amber backlighting from a large window behind;
 golden hour sunlight streaming through glass; cyberpunk cityscape visible through window;
-dim moody interior lighting; retro-futuristic room details; old CRT monitors on the walls;
-dark atmospheric shadows; dramatic rim lighting on edges;
+dim moody interior lighting; retro-futuristic room details;
 anime background; masterpiece; best quality; highly detailed background
 ```
 
-**Negative prompt:**
+**Negative:**
 ```
 worst quality; low quality; blurry; deformed; watermark; text; logo; signature;
 jpeg artifacts; out of frame; cropped; bright flat lighting; white background;
 plain background; empty background; person; character; face; body; extra limbs
 ```
 
-**Key settings:**
-
 | Parameter | Value |
 |---|---|
 | Output resolution | 1344x768 (16:9) |
 | LoRA strength | 0.8 |
-| Steps | 30 |
-| CFG | 7 |
+| Steps / CFG | 30 / 7 |
 | Sampler | euler_ancestral |
-| Scheduler | normal |
-| Denoise | 1.0 |
-| Feathering (outpaint) | 48 |
-| BiRefNet model | Matting |
+
+### Avatar Prompts
+
+**Positive (character description):**
+```
+masterpiece, best quality, amazing quality, cowboy_bebop_style,
+(1girl:1.3), (beautiful woman:1.2), (feminine face:1.3), solo, portrait, bust shot,
+looking at viewer, sharp amber eyes, (long flowing violet hair:1.2),
+gold hoop earrings, oversized black leather jacket, dark red crop top,
+simple dark background, retro anime, 90s anime aesthetic,
+(cel shading:1.2), (flat color:1.2), (bold lineart:1.1), 2d, highres
+```
+
+**Negative:**
+```
+worst quality, low quality, blurry, deformed, extra fingers, bad anatomy,
+watermark, text, signature, 3d, realistic, photorealistic, nsfw,
+male, man, masculine, multiple characters, red marks, face markings
+```
+
+| Parameter | Value |
+|---|---|
+| Output resolution | ~2080x3040px |
+| LoRA strength | 1.0 |
+| Base: Steps / CFG | 30 / 5.5 (euler_ancestral) |
+| HiRes: Steps / CFG | 20 / 8.0 (euler, denoise 0.45) |
+| FaceDetailer denoise | 0.25 |
+| Final upscale | x2 RealESRGAN Anime 6B |
 
 ---
 
 ## Tips
 
-- The negative prompt excludes `person; character; face; body` so the outpainting only generates background
-- Adjust the positive prompt to change the scene (bar, rooftop, cockpit, etc.)
-- LoRA 0.7-0.9 controls Bebop style intensity
-- The composite step preserves original portrait quality — only the background is AI-generated
+- **Outpainting:** negative excludes `person; face; body` so only background is generated. Adjust positive to change the scene.
+- **Avatar:** vary the seed for completely different characters. LoRA 0.8–1.0 controls Bebop style intensity.
+- The composite step (outpainting) preserves original portrait quality
+- Dark background on avatar = ideal for talking head / LongCat / SadTalker
 
 ---
 
